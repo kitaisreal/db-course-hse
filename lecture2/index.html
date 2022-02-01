@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 2.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 2. SQL.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. SQL - Structured Query Language.</p>
+        <p>2. SQL - Basics.</p>
+        <p>3. SQL - GROUP BY.</p>
+        <p>4. SQL - UNION, JOIN, Subqueries, CTE.</p>
+        <p>5. SQL - Window Functions.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL</h1>
+        <p>SQL - язык структурированных запросов (Structured Query Language).</p>
+        <p>Пользователь пишет SQL запрос, какие данные требуется извлечь или модицифировать.</p>
+        <p>СУБД отвечает за эффективную интерпретацию запроса.</p>
+        <p>SQL оперирует над множествами с возможными дубликатами (bags).</p>
+        <p>Оптимизатор СУБД переупорядочивает операции и генерирует эффективный план запроса.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL</h1>
+        <p>IBM была разработана экспериментальная реляционная СУБД IBM System R.</p>
+        <p>Для которой затем был создан специальный язык SEQUEL, позволявший относительно просто управлять данными в этой СУБД.</p>
+        <p>Аббревиатура SEQUEL расшифровывалась как Structured English QUEry Language — «структурированный английский язык запросов».</p>
+        <p>Принято Oracle в 1970-х годах.</p>
+        <p>IBM выпускает DB2 в 1983 году.</p>
+        <p>Стандарт ANSI 1986 г. </p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL</h1>
+
+        <p>Текущий стандарт SQL:2019</p>
+        <p>1. SQL:2019 - Multidimensional arrays (MDarray type and operators).</p>
+        <p>2. SQL:2016 - JSON, Polymorphic tables.</p>
+        <p>3. SQL:2011 - Temporal DBs, Pipelined DML.</p>
+        <p>4. SQL:2008 - TRUNCATE, Fancy sorting.</p>
+        <p>5. SQL:2003 - XML, windows, sequences, auto-gen IDs.</p>
+        <p>6. SQL:1999 - Regex, triggers, OO</p>
+
+        <p>Большинство СУБД поддерживают как минимум SQL-92.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL. Команды</h1>
+
+        <p>Язык cостоит из следующих типов операторов</p>
+        <p>1. Операторы манипуляции данными (Data Manipulation Language): SELECT, INSERT, UPDATE, DELETE.</p>
+        <p>2. Операторы определения данных (Data Definition Language): CREATE, ALTER, DROP.</p>
+        <p>3. Операторы определения доступа к данных (Data Control Language): GRANT, REVOKE, DENY.</p>
+        <p>4. Операторы контроля транзацкий (Transaction Control Language): COMMIT, ROLLBACK.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL</h1>
+
+        <p>Для разработчика реляционной СУБД SQL - интерфейс взаимодействия с системой.</p>
+        <p>Интерпретация и оптимизация SQL запроса может занимать значительное время его выполнения.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL</h1>
+
+        <code style="font-size:14pt;">CREATE TABLE movie
+(
+    id INT PRIMARY KEY,
+    name TEXT,
+    release_year SMALLINT,
+    average_rating FLOAT,
+    num_votes INT
+);</code>
+        <code style="font-size:14pt;">CREATE TABLE genre
+(
+    id INT PRIMARY KEY,
+    name TEXT
+);</code>
+        <code style="font-size:14pt;">CREATE TABLE movie_to_genre
+(
+    movie_id INT,
+    genre_id INT,
+    PRIMARY KEY(movie_id, genre_id)
+);</code>
+
+    </section>
+
+    <section class="slide">
+        <h1>SQL</h1>
+        <p style="font-size:14pt;">Топ 10 IMDB фильмов отсортированных по рейтингу:</p>
+        <code style="font-size:10pt;">SELECT * FROM movie;
+ id |                       name                        | release_year | average_rating | num_votes
+----+---------------------------------------------------+--------------+----------------+-----------
+  0 | The Shawshank Redemption                          |         1994 |            9.3 |   2149031
+  1 | The Dark Knight                                   |         2008 |              9 |   2118625
+  2 | Inception                                         |         2010 |            8.8 |   1883746
+  3 | Fight Club                                        |         1999 |            8.8 |   1716980
+  4 | Pulp Fiction                                      |         1994 |            8.9 |   1686388
+  5 | Forrest Gump                                      |         1994 |            8.8 |   1653584
+  6 | Game of Thrones                                   |         2011 |            9.4 |   1596735
+  7 | The Matrix                                        |         1999 |            8.7 |   1546559
+  8 | The Lord of the Rings: The Fellowship of the Ring |         2001 |            8.8 |   1542044
+  9 | The Lord of the Rings: The Return of the King     |         2003 |            8.9 |   1526805
+(10 rows)</code>
+        <code style="font-size:12pt; width:40%; float: left; margin-top: 5px;">SELECT * FROM genre;
+ id |   name
+----+-----------
+  0 | Action
+  1 | Crime
+  2 | Drama
+  3 | Thriller
+  4 | Adventure
+  5 | Sci-Fi
+  6 | Romance
+  7 | Fantasy
+(8 rows)</code>
+        <code style="font-size:12pt; width:55%; float: right; margin-top: 5px;">SELECT * FROM movie_to_genre;
+movie_id | genre_id
+----------+----------
+       1 |        0
+       1 |        1
+       1 |        2
+       1 |        3
+       0 |        2
+            ...
+       9 |        0
+       9 |        4
+       9 |        2
+       9 |        6
+    (28 rows)</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT</h1>
+
+        <p style="font-size: 14pt;">Запрос включает список столбцов для включения в окончательный результат, обычно сразу после ключевого слова SELECT.
+Можно использовать звездочку ("*"), чтобы указать, что запрос должен возвращать все столбцы запрошенных таблиц.</p>
+
+        <p style="font-size: 14pt;">1. FROM указывающее таблицы, из которых необходимо извлечь данные. FROM может включать JOIN для указания правил объединения таблиц.</p>
+        <p style="font-size: 14pt;">2. WHERE включает предикат сравнения, который ограничивает строки, возвращаемые запросом. WHERE удаляет из результирующего набора все строки, в которых предикат сравнения не имеет значение True.</p>
+        <p style="font-size: 14pt;">3. GROUP BY групирует строки, имеющие общие значения выражения, над которыми затем можно выполнять агрегирующие функции.
+WHERE применяется перед GROUP BY.</p>
+        <p style="font-size: 14pt;">4. HAVING включает предикат, используемый для фильтрации строк, после GROUP BY.</p>
+        <p style="font-size: 14pt;">5. ORDER BY указывает, какие столбцы использовать для сортировки результирующих данных
+и в каком порядке их сортировать (по возрастанию или по убыванию). Без предложения ORDER BY порядок строк, возвращаемых запросом SQL, не определен.
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT</h1>
+        <code style="font-size: 12pt;">SELECT * FROM movie WHERE release_year = 1994;
+ id |           name           | release_year | average_rating | num_votes
+----+--------------------------+--------------+----------------+-----------
+  0 | The Shawshank Redemption |         1994 |            9.3 |   2149031
+  4 | Pulp Fiction             |         1994 |            8.9 |   1686388
+  5 | Forrest Gump             |         1994 |            8.8 |   1653584
+</code>
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT * FROM movie WHERE average_rating >= 9.0;
+ id |           name           | release_year | average_rating | num_votes
+----+--------------------------+--------------+----------------+-----------
+  0 | The Shawshank Redemption |         1994 |            9.3 |   2149031
+  1 | The Dark Knight          |         2008 |              9 |   2118625
+  6 | Game of Thrones          |         2011 |            9.4 |   1596735
+        </code>
+
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT name, release_year, average_rating FROM movie WHERE release_year = 1994;
+    name           | release_year | average_rating
+--------------------------+--------------+----------------
+The Shawshank Redemption |         1994 |            9.3
+Pulp Fiction             |         1994 |            8.9
+Forrest Gump             |         1994 |            8.8
+(3 rows)
+</code>
+        </code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT ORDER BY</h1>
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT * FROM movie WHERE average_rating >= 9.0 ORDER BY average_rating ASC;
+ id |           name           | release_year | average_rating | num_votes
+----+--------------------------+--------------+----------------+-----------
+ 1 | The Dark Knight          |         2008 |              9 |   2118625
+ 0 | The Shawshank Redemption |         1994 |            9.3 |   2149031
+ 6 | Game of Thrones          |         2011 |            9.4 |   1596735
+        </code>
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT * FROM movie WHERE average_rating >= 9.0 ORDER BY average_rating DESC;
+ id |           name           | release_year | average_rating | num_votes
+----+--------------------------+--------------+----------------+-----------
+  6 | Game of Thrones          |         2011 |            9.4 |   1596735
+  0 | The Shawshank Redemption |         1994 |            9.3 |   2149031
+  1 | The Dark Knight          |         2008 |              9 |   2118625
+        </code>
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT * FROM movie WHERE average_rating >= 9.0 ORDER BY length(name) ASC;
+id |           name           | release_year | average_rating | num_votes
+----+--------------------------+--------------+----------------+-----------
+ 1 | The Dark Knight          |         2008 |              9 |   2118625
+ 6 | Game of Thrones          |         2011 |            9.4 |   1596735
+ 0 | The Shawshank Redemption |         1994 |            9.3 |   2149031
+</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT GROUP BY</h1>
+
+        <p>Проецирует кортежи на подмножества (разбивает на группы) в которых значение выражения GROUP BY уникально
+и вычисляет агрегаты для каждого подмножества.</p>
+        <p>Примеры выражений в GROUP BY: column_name, LEN(column_name).</p>
+        <p>Можно делать GROUP BY по нескольким выражениям сразу: GROUP BY column_name_1, column_name_2</p>
+        <p>Примеры агрегатных функций: COUNT, SUM, MIN, MAX, AVG</p>
+        <p>Некоторые агрегатные функции позволяют дополнительно указывать DISTINCT: COUNT(DISTINCT expr).</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT GROUP BY</h1>
+
+        <code style="font-size: 12pt;">SELECT release_year, COUNT(*) FROM movie GROUP BY release_year ORDER BY release_year;</code>
+        <p style="font-size: 12pt;">Разбиваем кортежи на группы используя выражение в GROUP BY.</p>
+        <code style="font-size: 10pt;">id |                       name                        | release_year | average_rating | num_votes
+----+---------------------------------------------------+--------------+----------------+-----------
+1 группа:
+ 0 | The Shawshank Redemption                          |         1994 |            9.3 |   2149031
+ 4 | Pulp Fiction                                      |         1994 |            8.9 |   1686388
+ 5 | Forrest Gump                                      |         1994 |            8.8 |   1653584
+
+2 группа:
+ 3 | Fight Club                                        |         1999 |            8.8 |   1716980
+ 7 | The Matrix                                        |         1999 |            8.7 |   1546559
+
+3 группа:
+ 8 | The Lord of the Rings: The Fellowship of the Ring |         2001 |            8.8 |   1542044
+
+4 группа:
+ 9 | The Lord of the Rings: The Return of the King     |         2003 |            8.9 |   1526805
+
+5 группа:
+ 1 | The Dark Knight                                   |         2008 |              9 |   2118625
+
+6 группа:
+ 2 | Inception                                         |         2010 |            8.8 |   1883746
+
+7 группа:
+ 6 | Game of Thrones                                   |         2011 |            9.4 |   1596735
+
+(10 rows)</code>
+</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT GROUP BY</h1>
+
+        <p style="font-size: 12pt;">Агрегируем значения внутри групп используя агрегирующие функции.</p>
+        <code style="font-size: 12pt;">SELECT release_year, COUNT(*) FROM movie GROUP BY release_year ORDER BY release_year;</code>
+
+<code style="font-size: 12pt;">
+release_year | count
+--------------+-------
+    1994 |     3
+    1999 |     2
+    2001 |     1
+    2003 |     1
+    2008 |     1
+    2010 |     1
+    2011 |     1
+</code>
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT release_year, COUNT(average_rating), MAX(average_rating), MIN(average_rating) FROM movie
+GROUP BY release_year;</code>
+<code style="font-size: 12pt;">
+ release_year | count | max | min
+--------------+-------+-----+-----
+         2003 |     1 | 8.9 | 8.9
+         1994 |     3 | 9.3 | 8.8
+         2008 |     1 |   9 |   9
+         2010 |     1 | 8.8 | 8.8
+         2011 |     1 | 9.4 | 9.4
+         2001 |     1 | 8.8 | 8.8
+         1999 |     2 | 8.8 | 8.7
+</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT GROUP BY HAVING</h1>
+
+        <code style="font-size: 14pt; margin-top: 5px;">SELECT release_year, COUNT(average_rating) as count FROM movie
+GROUP BY release_year HAVING release_year > 2000;
+
+ release_year | count
+--------------+-------
+ 2003 |     1
+ 2008 |     1
+ 2010 |     1
+ 2011 |     1
+ 2001 |     1
+(5 rows)
+</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL SELECT GROUP BY</h1>
+        <p>В проекции SELECT нельзя использовать выражения кроме выражений в GROUP BY и агрегатных функций.</p>
+
+        <code style="font-size: 14pt;">SELECT name FROM movie GROUP BY release_year;
+ERROR:  column "movie.name" must appear in the GROUP BY clause
+or be used in an aggregate function
+LINE 1: SELECT name FROM movie GROUP BY release_year;
+</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL UNION</h1>
+
+        <code style="font-size: 14pt;">CREATE TABLE test_join_1 (id INT NOT NULL PRIMARY KEY);</code>
+        <code style="font-size: 14pt;">CREATE TABLE test_join_2 (id INT NOT NULL PRIMARY KEY);</code>
+
+        <code style="font-size: 14pt;">INSERT INTO test_join_1 VALUES (1), (2), (3), (4);</code>
+        <code style="font-size: 14pt;">INSERT INTO test_join_2 VALUES (3), (4), (5), (6);</code>
+
+        <code style="font-size:14pt; width:40%; float: left; margin-top: 5px;">SELECT id FROM test_join_1;
+ id
+----
+ 1
+ 2
+ 3
+ 4
+(4 rows)</code>
+           <code style="font-size:14pt; width:55%; float: right; margin-top: 5px;">SELECT id FROM test_join_2;
+ id
+----
+ 3
+ 4
+ 5
+ 6
+(4 rows)</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL UNION</h1>
+    <p style="font-size: 14pt;">UNION объединяет результаты двух SQL-запросов в одну таблицу всех совпадающих строк.
+    Два запроса должны давать одинаковое количество столбцов и совместимых типов данных, чтобы их можно было объединить.
+    Любые повторяющиеся записи автоматически удаляются, если только не используется UNION ALL.</p>
+
+    <code style="font-size:14pt; width:45%; float: left; margin-top: 5px;">(SELECT id FROM test_join_1)
+    UNION
+(SELECT id FROM test_join_2);
+
+ id
+----
+ 2
+ 5
+ 4
+ 6
+ 1
+ 3
+ (6 rows)</code>
+    <code style="font-size:14pt; width:50%; float: right; margin-top: 5px;">(SELECT id FROM test_join_1)
+    UNION ALL
+(SELECT id FROM test_join_2);
+
+ id
+----
+ 1
+ 2
+ 3
+ 4
+ 3
+ 4
+ 5
+ 6
+(8 rows)</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL UNION</h1>
+        <p style="font-size: 14pt;">INTERSECT берет результаты двух запросов и возвращает только те строки, которые присутствуют в обоих наборах результатов.</p>
+        <p style="font-size: 14pt;">Оператор EXCEPT берет отдельные строки одного запроса и возвращает строки, которых нет во втором наборе результатов.</p>
+
+        <code style="font-size:14pt; width:45%; float: left; margin-top: 5px;">(SELECT id FROM test_join_1)
+    INTERSECT
+(SELECT id FROM test_join_2);
+
+ id
+----
+ 4
+ 3
+(2 rows)</code>
+        <code style="font-size:14pt; width:50%; float: right; margin-top: 5px;">(SELECT id FROM test_join_1)
+    EXCEPT
+(SELECT id FROM test_join_2);
+
+ id
+----
+ 2
+ 1
+(2 rows)</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL JOIN</h1>
+        <p>JOIN соответствующеет операции JOIN в реляционной алгебре, объединяет столбцы из одной или нескольких таблиц в новую таблицу.
+Стандарт ANSI SQL определяет пять типов JOIN: INNER, LEFT OUTER, RIGHT OUTER, FULL OUTER и CROSS.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL CROSS JOIN</h1>
+    <code style="font-size: 14pt">SELECT * FROM test_join_1 CROSS JOIN test_join_2;
+
+ id | id
+----+----
+  1 |  3
+  1 |  4
+  1 |  5
+  1 |  6
+  2 |  3
+  2 |  4
+  2 |  5
+  2 |  6
+  3 |  3
+  3 |  4
+  3 |  5
+  3 |  6
+  4 |  3
+  4 |  4
+  4 |  5
+  4 |  6
+(16 rows)
+    </code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL INNER JOIN</h1>
+    <code style="font-size: 14pt">SELECT * FROM test_join_1 INNER JOIN test_join_2
+    ON test_join_1.id = test_join_2.id;</code>
+    <code style="font-size: 14pt">SELECT * FROM test_join_1 INNER JOIN test_join_2 USING(id)</code>
+    <code style="font-size: 14pt">SELECT * FROM test_join_1 NATURAL JOIN test_join_2</code>
+
+    <code style="font-size: 14pt; margin-top: 5px;"> id
+----
+ 3
+ 4
+(2 rows)
+    </code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL OUTER JOIN</h1>
+    <code style="font-size: 14pt">SELECT t1.id, t2.id FROM test_join_1 AS t1
+LEFT OUTER JOIN test_join_2 AS t2 USING ON t1.id = t2.id;
+
+ id | id
+----+----
+  1 |
+  2 |
+  3 |  3
+  4 |  4
+(4 rows)
+    </code>
+
+    <code style="font-size: 14pt">SELECT t1.id, t2.id FROM test_join_1 AS t1
+RIGHT OUTER JOIN test_join_2 AS t2 USING (id);
+
+ id | id
+----+----
+ 3  |  3
+ 4  |  4
+    |  5
+    |  6
+(4 rows)</code>
+
+    </section>
+
+    <section class="slide">
+        <h1>SQL Subqueries</h1>
+
+        <p>Могут встречаться во всех частях запроса.</p>
+        <p>Могут возвращать скалярное значение, или являться табличным выраженями.</p>
+        <p>Могут быть связанные и несвязанные с внешним запросом.</p>
+        <p>Могут быть использованы с операторами ALL, ANY, IN, EXISTS.</p>
+    </section>
+
+    <section class="slide">
+        <h1>SQL Subqueries</h1>
+
+        <code style="font-size: 12pt">
+SELECT id, (SELECT sum(id) FROM test_join_2) FROM test_join_1;
+
+ id | sum
+----+-----
+  1 |  18
+  2 |  18
+  3 |  18
+  4 |  18
+(4 rows)</code>
+
+        <code style="font-size: 12pt">
+SELECT id,
+(
+    SELECT 1 as exists FROM test_join_2
+    WHERE test_join_2.id = test_join_1.id
+)
+FROM test_join_1;
+
+id | exists
+----+--------
+ 1 |
+ 2 |
+ 3 |      1
+ 4 |      1
+(4 rows)</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL Subqueries</h1>
+
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT id FROM test_join_1 WHERE id = ALL (SELECT 2);
+
+ id
+----
+ 2
+(1 row)</code>
+
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT id FROM test_join_1 WHERE id = ANY (SELECT id FROM test_join_2);
+
+ id
+----
+ 3
+ 4
+(2 rows)</code>
+
+        <code style="font-size: 12pt; margin-top: 5px;">SELECT id FROM test_join_1 WHERE id IN (SELECT id FROM test_join_2);
+
+ id
+----
+ 3
+ 4
+(2 rows)</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL CTE</h1>
+
+        <p>Общее табличное выражение, или CTE, (в SQL) — это временный именованный набор результатов, полученный из подзапроса и определенный в области выполнения
+SELECT, INSERT, UPDATE или DELETE.</p>
+        <code style="font-size: 14pt;">WITH multiply_test_join_1 AS (
+    SELECT (id * 2) AS result FROM test_join_1
+)
+SELECT result FROM multiply_test_join_1;
+
+ result
+--------
+ 2
+ 4
+ 6
+ 8
+(4 rows)
+</code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL Window Functions</h1>
+
+        <p>Оконные функции — это функции, которая используют значения из одной или нескольких строк для возврата значения для каждой строки.
+В оконных функциях есть OVER, таким образом анализатор запроса отличает их от агрегатных функций.</p>
+        <p>В PARTITION BY можно указать каким образом данные разбиваются на окна.</p>
+        <p>Большинство агрегатных функций можно использовать в качестве оконных. Есть специальные оконные функции RANK, ROW_NUMBER.</p>
+        <p>Окна можно переиспользовать используя WINDOW оператор.</p>
+        <p>Внутри окон можно дополнительно сортировать данные используя ORDER BY.</p>
+
+    </section>
+
+    <section class="slide">
+        <h1>SQL Window Functions</h1>
+
+        <code style="font-size: 12pt">SELECT id, name, COUNT(*) OVER (PARTITION BY movie.release_year) FROM movie;
+
+id |                       name                        | count
+----+---------------------------------------------------+-------
+ 0 | The Shawshank Redemption                          |     3
+ 4 | Pulp Fiction                                      |     3
+ 5 | Forrest Gump                                      |     3
+ 3 | Fight Club                                        |     2
+ 7 | The Matrix                                        |     2
+ 8 | The Lord of the Rings: The Fellowship of the Ring |     1
+ 9 | The Lord of the Rings: The Return of the King     |     1
+ 1 | The Dark Knight                                   |     1
+ 2 | Inception                                         |     1
+ 6 | Game of Thrones                                   |     1
+(10 rows)
+        </code>
+    </section>
+
+    <section class="slide">
+        <h1>SQL Window Functions</h1>
+
+        <code style="font-size: 12pt">SELECT id, name, COUNT(*) OVER w, ROW_NUMBER() OVER w
+FROM movie WINDOW w as (PARTITION BY movie.release_year);
+
+id |                       name                        | count | row_number
+----+---------------------------------------------------+-------+------------
+ 0 | The Shawshank Redemption                          |     3 |          1
+ 4 | Pulp Fiction                                      |     3 |          2
+ 5 | Forrest Gump                                      |     3 |          3
+ 3 | Fight Club                                        |     2 |          1
+ 7 | The Matrix                                        |     2 |          2
+ 8 | The Lord of the Rings: The Fellowship of the Ring |     1 |          1
+ 9 | The Lord of the Rings: The Return of the King     |     1 |          1
+ 1 | The Dark Knight                                   |     1 |          1
+ 2 | Inception                                         |     1 |          1
+ 6 | Game of Thrones                                   |     1 |          1
+(10 rows)
+        </code>
+    </section>
+
+    <section class="slide">
+        <h1>Вопросы ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
