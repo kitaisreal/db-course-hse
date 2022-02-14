@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 3.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 3. Storage - 1.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Disk-oriented architecture.</p>
+        <p>2. File Storage.</p>
+        <p>3. Page layout structure.</p>
+        <p>4. Tuple layout structure.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Disk-oriented database architecture</h1>
+        <p>Мы сосредоточимся на архитектуре СУБД, которая предполагает, что основное место хранения базы данных находится на энергонезависимом хранилище.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Storage Hierarchy</h1>
+        <p>В верхней части иерархии хранения находятся устройства, расположенные ближе всего к ЦП.
+            Это самое быстрое хранилище, но оно также самое маленькое и самое дорогое.
+            Чем дальше вы отходите от ЦП, тем больше емкость запоминающих устройств, но они намного медленнее.
+            Эти устройства также становятся дешевле в пересчете на ГБ.
+        </p>
+        <p>Проектирование для обеспечения высокой производительности требует учета ограничений иерархии памяти,
+            то есть размера и возможностей каждого компонента.
+        </p>
+    </section>
+
+    <section class="slide">
+        <h1>Storage Hierarchy</h1>
+
+        <img style="width: 100%; height:auto;" src="pictures/storage_hierarchy.png"/>
+    </section>
+
+    <secion class="slide">
+        <h1>Storage Latencies</h1>
+
+        <p>1. 0.5 nanoseconds L1 cache reference</p>
+        <p>2. 7 nanoseconds L2 cache reference</p>
+        <p>3. 100 nanoseconds DRAM</p>
+        <p>4. 150,000 nanoseconds SSD</p>
+        <p>5. 10,000,000 nanoseconds HDD</p>
+        <p>6. ~30,000,000 nanoseconds Network Storage</p>
+    </secion>
+
+    <section class="slide">
+        <h1>Disks measurements</h1>
+
+        <p>Случайный доступ на чтение/запись в случае SSD ~70 микросекунд, в случае с HDD ~10-15 миллисекунд</p>
+        <p>Пропусная способность чтения/записи SATA SSD ~600 мегабайт в секунду, NVME SSD ~3.5 гигабайт в секунду.</p>
+
+        <p>https://arxiv.org/pdf/2102.11198.pdf</p>
+        <p>https://habr.com/ru/post/154235/</p>
+    </section>
+
+    <section class="slide">
+        <h1>Storage</h1>
+
+        <p>Компоненты СУБД управляют перемещением данных между энергонезависимой и энергозависимой памятью.</p>
+        <p>Система не может работать с данными непосредственно на диске, без предварительного перемещения в энергозависимые хранилища.</p>
+    </section>
+
+    <section class="slide">
+        <h1>DBMS Architecture</h1>
+
+        <p>Разрешить СУБД управлять базами данных, которые превышают объем доступной памяти.</p>
+        <p>Чтение/запись на диск требует больших затрат, поэтому следует максимально сократить их количество,
+            чтобы избежать больших задержек и снижения производительности.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Buffer pool</h1>
+
+        <img style="width: 80%; height: 80%;" src="pictures/buffer_pool.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>OS mmap</h1>
+
+        <p>Использование системного вызова <b>mmap</b>. Отобразить содержимое файла в адресное пространство процесса.</p>
+        <p>Операционная система отвечает за перемещение данных для перемещения страниц файлов в память и из памяти.</p>
+    </section>
+
+    <section class="slide">
+        <h1>OS mmap</h1>
+
+        <p><b>madvise</b>: сообщить ОС, последующую стратегию чтения страниц.</p>
+        <p><b>mlock</b>: сообщить ОС, что диапазон страниц нельзя выгружать из памяти.</p>
+        <p><b>msync</b>: сообщить ОС, сделать синхронизацию диапазона страниц.</p>
+
+        <p>Многие системы используют такой подход полностью или частично (monetDB, levelDB, mongoDB).</p>
+    </section>
+
+    <section class="slide">
+        <h1>OS mmap</h1>
+
+        <p>Операционная система не может эффективно понимать какие страницы нужно сбрасывать на диск,
+            какие стоит оставить в памяти для повторного обращение.</p>
+
+        <p>1. Правильный порядок сброса страниц на диск.</p>
+        <p>2. Предварительная загрузка данных (Prefetch).</p>
+        <p>3. Разделение ресурсов и планирование (Resourse IO scheduling).</p>
+        <p>4. Тяжело управлять политикой кэширования (Cache policy)</p>
+
+        <p>Система управление базами данных делать это эффективнее.</p>
+    </section>
+
+    <section class="slide">
+        <h1>File Storage</h1>
+
+        <p>СУБД хранит базу данных в виде одного или нескольких файлов на диске. ОС ничего не знает о содержимом этих файлов.
+        <p>Ранние системы 1980-х годов использовали пользовательские файловые системы взаимодействуя с сырыми (raw) девайсами.</p>
+        <p>Некоторые корпоративные СУБД все еще поддерживают это (Oracle).</p>
+        <p>Большинство новых СУБД этого не делают.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Storage Manager</h1>
+        <p>Storage Manager отвечает за хранение файлов базы данных.</p>
+        <p>1. Организация файлов как некоторый набор страниц.</p>
+        <p>2. Отслеживание чтения/записи данных на страницы.</p>
+        <p>3. Мониторинг доступного пространства.</p>
+        <p>4. Может отвечать за планирование чтения и записи. Улучшать локальность данных на страницах.</p>
+    </section>
+
+    <section class="slide">
+        <h1>DBMS page</h1>
+
+        <p>Страница — это блок данных фиксированного размера (Обычно 512B - 16KB).</p>
+        <p>Она может содержать кортежи, метаданные, индексы, записи WAL.</p>
+        <p>Каждой странице присваивается уникальный идентификатор.</p>
+        <p>СУБД использует косвенный уровень для сопоставления идентификаторов страниц с
+            их физическим местоположениям на диске.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Page Storage Architecture</h1>
+
+        <p>СУБД по разному организуют хранение страниц в файлах на диске.</p>
+        <p>Интерфейс создать, прочитать, записать, удалить страницу.</p>
+        <p>Нужны метаданные, чтобы отслеживать, какие страницы существуют и на каких есть свободное место.</p>
+        <p>1. Heap File</p>
+        <p>2. Sequential / Sorted file Organization</p>
+        <p>3. Hashing File Organization</p>
+    </section>
+
+    <section class="slide">
+        <h1>Heap file</h1>
+        <p>Это неупорядоченный набор страниц где кортежи, хранятся в случайном порядке.</p>
+        <p>1. Связный список (Linked List)</p>
+        <p>2. Директория страниц (Page Directory)</p>
+    </section>
+
+    <section class="slide">
+        <h1>Linked List</h1>
+
+        <p>Заголовочная (HEADER) страница в начале файла, на которой хранится два указателя:</p>
+        <p>1. Голова (HEAD) списка свободных страниц.</p>
+        <p>2. Голова (HEAD) списка страниц заполненных данными.</p>
+
+        <p>Каждая страница сама отслеживает количество свободных слотов.</p>
+        <p>В случае variable length, нельзя иметь полностью заполенные страницы.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Linked List</h1>
+
+        <img style="width: 80%; height: 80%;" src="pictures/linked_list.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Page Directory</h1>
+
+        <p>СУБД поддерживает специальные страницы, которые отслеживают расположение страниц данных в файлах базы данных.</p>
+        <p>В каталоге также фиксируется количество свободных мест на странице.</p>
+        <p>СУБД должна убедиться, что страницы каталога синхронизированы со страницами данных.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Page Directory</h1>
+
+        <img style="width: 80%; height: 80%;" src="pictures/page_directory.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Page layout</h1>
+
+        <p>Каждая страница содержит заголовок с мета-данными о содержимом страницы.</p>
+
+        <img style="width: 40%; height: auto; float: right; margin-top: -20px;" src="pictures/page_header.png"/>
+        <p>1. Размер страницы</p>
+        <p>2. Контрольная сумма (Checksum)</p>
+        <p>3. Версия СУБД</p>
+        <p>4. Видимость транзакции (Transaction visibility)</p>
+        <p>5. Информация о сжатии (Compression information)</p>
+    </section>
+
+    <section class="slide">
+        <h1>Page layout</h1>
+
+        <p>Теперь для любой архитектуры хранения страниц нам необходимо понять, как организовать данные, хранящиеся внутри
+            страницы. Мы по-прежнему предполагаем, что храним только кортежи.</p>
+        <p>1. Tuple-oriented</p>
+        <p>2. Log-structured</p>
+    </section>
+
+    <section class="slide">
+        <h1>Tuple storage</h1>
+        <p>Храним в заголовке количество кортежей. Кортежи записываем после заголовка.</p>
+        <img style="width: 100%; height: auto;" src="pictures/tuple_page.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Slotted pages</h1>
+        <p>Храним массив свободных слотов в странице, каждый слот хранит указатель на начало записи кортежа и его длину.</p>
+        <img style="width: 90%; height: 65%;" src="pictures/slotted_pages.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Tuple layout</h1>
+        <p>Последовательность байт, задачу СУБД проинтерпретировать ее.</p>
+        <p>Имеет заголовок с метаданными:</p>
+        <p>1. Метаданные о транзацкии (Transaction visibility).</p>
+        <p>2. Битовая маска для значений NULL.</p>
+        <img style="width: 90%; height: auto;" src="pictures/tuple_header.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Record identifiers</h1>
+
+        <p>СУБД нужен способ отслеживать отдельные кортежи. Каждому кортежу назначается уникальная запись идентификатор.</p>
+        <p>Обычно это page_id + offset/slot. Также может содержать информацию о расположении файла.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Вопросы ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
