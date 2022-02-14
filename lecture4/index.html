@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 4.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 4. Storage - 2.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Slotted pages.</p>
+        <p>2. Log-structured file organization.</p>
+        <p>3. Tuple data representation.</p>
+        <p>4. System catalogs.</p>
+        <p>5. OLTP, OLAP, HTAP workloads.</p>
+        <p>6. NSM storage model (row store). DSM storage model (column store).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Slotted pages</h1>
+        <p>Храним массив свободных слотов в странице, каждый слот хранит указатель на начало записи кортежа и его длину.</p>
+        <img style="width: 90%; height: 65%;" src="pictures/slotted_pages.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Log-structured file organization</h1>
+        <p>Вместо хранения кортежей на страницах СУБД хранит только записи журнала.
+        Система добавляет записи журнала в файл о том, как была изменена база данных:</p>
+        <p>1. INSERT сохраняют весь кортеж.</p>
+        <p>2. DELETE помечает кортеж как удаленный.</p>
+        <p>3. UPDATE содержит только атрибуты, которые были изменены.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Log-structured file organization</h1>
+
+        <img style="width: 60%; height: auto;" src="pictures/log_structured_page_1.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Log-structured file organization</h1>
+
+        <img style="width: 60%; height: auto;" src="pictures/log_structured_page_2.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Log-structured file compaction</h1>
+        <p>Периодическое уплотнение (compaction) log файлов.</p>
+
+        <img style="float: left; width: 50%; height: auto;" src="pictures/log_structured_page_1.png"/>
+        <img style="float: right; width: 50%; height: auto;" src="pictures/log_structured_page_3.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Log-structured file organization</h1>
+        <p>Различные индексы могут улучшить производительность чтения (hash, bloom filter, cuckoo index).</p>
+        <p>Используется в таких системах как (Google BigTable, Apache HBASE, RocksDB, LevelDB).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Tuple storage</h1>
+
+        <p>Последовательность байт, задачу СУБД проинтерпретировать ее.</p>
+        <p>Системные каталоги СУБД содержат информацию о схеме таблиц, которую система использует для определения типов атрибутов кортежа.<p>
+        <p>Имеет заголовок с метаданными:</p>
+        <p>1. Метаданные о транзацкии (Transaction visibility).</p>
+        <p>2. Битовая маска для значений NULL.</p>
+
+        <img style="width: 90%; height: auto;" src="pictures/tuple_header.png"/>
+    </section>
+
+    <secion class="slide">
+        <h1>Integers</h1>
+
+        <p>Большинство СУБД хранят целые числа, используя свои «родные» типы C/C++, как указано в стандарте IEEE-754. Эти значения имеют фиксированную длину.</p>
+        <p>https://en.wikipedia.org/wiki/IEEE_754</p>
+        <p>Примеры: INTEGER, BIGINT, SMALLINT, TINYINT.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>Variable Precision Numbers</h1>
+
+        <p>Числа с плавающей точкой, использующий «собственные» типы C/C++, указанные в стандарте IEEE-754. Эти значения имеют фиксированную длину.</p>
+        <p>Числа с плавающей точкой вычисляются быстрее, чем числа с произвольной точностью, потому что ЦП может напрямую выполнять над ними инструкции.</p>
+        <p>https://en.wikipedia.org/wiki/IEEE_754</p>
+        <p>Примеры: FLOAT, DOUBLE/REAL.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>Fixed Precision Numbers</h1>
+
+        <p>Это числовые типы данных с произвольной точностью и масштабом. Обычно они хранятся в точном двоичном представлении переменной длины
+            с дополнительными метаданными (scale, precision), которые сообщают системе, например, где должен быть десятичный разряд.</p>
+        <p>Эти типы данных используются, когда ошибки округления недопустимы, но СУБД платит за производительность, чтобы получить такую точность.</p>
+        <p>Примеры: NUMERIC, DECIMAL.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>Fixed Length Data</h1>
+        <p>Массив байтов фиксированной длины.</p>
+        <p>Если значение занимает меньше чем длина, свободное место не используется.</p>
+        <p>Примеры: CHAR.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>Variable Length Data</h1>
+        <p>Массив байтов произвольной длины.</p>
+        <p>Имеет заголовок, который отслеживает длину строки, чтобы упростить переход к следующему значению.</p>
+        <p>Большинство СУБД не допускают, чтобы размер кортежа превышал размер одной страницы, поэтому они решают эту проблему путем
+            записи значения на странице переполнения (overflow page) и содержание в кортеже ссылки на значение в этой странице</p>
+        <p>Примеры: VARCHAR, VARBINARY, TEXT.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>Variable Length Data</h1>
+        <p>Большинство СУБД не допускают, чтобы размер кортежа превышал размер одной страницы, поэтому они решают эту проблему путем
+            записи значения на странице переполнения (overflow page) и содержание в кортеже ссылки на значение в этой странице</p>
+        <p>Postgres: TOAST (>1/4 size of page 2KB)</p>
+        <p>MySQL: Overflow (>1⁄2 size of page)</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>Variable Length Data</h1>
+        <img style="width: 85%; height: auto;" src="pictures/tuple_overflow_page.png"/>
+    </secion>
+
+    <secion class="slide">
+        <h1>External Value Data</h1>
+
+        <p>Некоторые системы позволяют хранить эти большие значения во внешнем файле, и тогда кортеж будет содержать указатель на этот файл. Один
+            недостатком этого является то, что СУБД не может манипулировать содержимым этого файла.</p>
+        <p>Нет поддержки транзакционности</p>
+        <p>Примеры: BLOB.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>External Vength Data</h1>
+        <img style="width: 85%; height: auto;" src="pictures/tuple_blob_page.png"/>
+    </secion>
+
+
+    <secion class="slide">
+        <h1>Dates and Times</h1>
+        <p>Обычно они представлены как количество (микро/милли) секунд с эпохи UNIX (UNIX timestamp).</p>
+        <p>Примеры: TIME, DATE, TIMESTAMP.</p>
+    </secion>
+
+    <section class="slide">
+        <h1>Additional types</h1>
+        <p>Многие СУБД вводят дополнительные типы.</p>
+        <p>1. ENUM</p>
+        <p>2. Массивы</p>
+        <p>3. Геометрические типы (POINT, POLYGON)</p>
+        <p>4. Составные типы</p>
+        <p>5. JSON/XML</p>
+        <p>6. Range</p>
+    </section>
+
+    <section class="slide">
+        <h1>System catalog</h1>
+
+        <p>СУБД хранит метаданные о базах данных, в своих системных каталоги.</p>
+        <p>1. Таблицы, представления, столбцы, атрибуты, индексы.</p>
+        <p>2. Пользователи, права доступа.</p>
+
+        <p>Большинство СУБД хранят метаданные в специальных системных таблицах.</p>
+    </section>
+
+    <section class="slide">
+        <h1>System catalog</h1>
+
+        <p>В реляционных базах данных информационная схема (information_schema) представляет собой набор представлений,
+            доступных только для чтения, в соответствии со стандартом ANSI,
+            которые предоставляют информацию обо всех таблицах, представлениях, столбцах и процедурах в базе данных.</p>
+        <p>https://en.wikipedia.org/wiki/Information_schema</p>
+    </section>
+
+    <section class="slide">
+        <h1>System catalog</h1>
+        <p>Большинство СУБД предоставляют дополнительную информацию с использованием нестандартных команд</p>
+        <p>MySQL - SHOW</p>
+        <p>Oracle - DESCRIBE</p>
+        <p>psql (Postgres default command-line program) - \d</p>
+    </section>
+
+    <section class="slide">
+        <h1>Workloads</h1>
+        <p>Реляционная модель не указывает, что мы должны хранить все атрибуты кортежа вместе на одной странице.</p>
+        <p>На самом деле это может быть не лучший способ хранения для некоторых видов нагрузок.</p>
+    </section>
+
+    <section class="slide">
+        <h1>OLTP</h1>
+
+        <p>OLTP - On-line Transaction Processing</p>
+        <p>Простые запросы, которые читают/обновляют небольшой количество данных, относящихся к одному объекту в базе данных.</p>
+        <p>Быстрые, кратковременные операции.</p>
+        <p>Нагрузка преимущественно на запись, а не чтение.</p>
+        <p>https://en.wikipedia.org/wiki/Online_transaction_processing</p>
+    </section>
+
+    <section class="slide">
+        <h1>OLAP</h1>
+
+        <p>On-line Analyitical Processing</p>
+        <p>Длительные, более сложные запросы.</p>
+        <p>Запрос читает большие массивы данных,</p>
+        <p>Различные аналитические запросы (GROUP BY, WINDOW FUNCTION).</p>
+        <p>Получение новых данных из данных, собранных на стороне OLTP.</p>
+        <p>https://en.wikipedia.org/wiki/Online_analytical_processing</p>
+    </section>
+
+    <section class="slide">
+        <h1>Storage Model</h1>
+        <p>СУБД может хранить кортежи различными способами, которые лучше подходят для рабочих нагрузок OLTP или OLAP.</p>
+До сих пор в этом семестре мы использовали n-арную модель хранения (также известную как «хранилище строк»).
+    </section>
+
+    <section class="slide">
+        <h1>N-ary storage model (NSM)</h1>
+
+        <p>Row store</p>
+        <p>СУБД хранит все атрибуты одного кортежа последовательно на странице.</p>
+        <p>Идеально подходит для рабочих нагрузок OLTP, когда запросы, как правило, работают только с отдельными объектами, а вставки — с большими рабочими нагрузками.</p>
+    </section>
+
+    <section class="slide">
+        <h1>N-ary storage model (NSM)</h1>
+
+        <img style="width: 85%; height: auto;" src="pictures/nsm_model_page.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>N-ary storage model (NSM)</h1>
+
+        <p>Примеры систем: MySQL, PostgreSQL, Oracle.</p>
+
+        <p>Преимущества:</p>
+        <p>1. Быстрая вставка, обновление и удаление.</p>
+        <p>2. Подходит для запросов, которым нужен весь кортеж.</p>
+        <p>Недостатки:</p>
+        <p>1. Не подходит для сканирования больших частей таблицы и/или подмножества атрибутов.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Decomposition storage model (DSM)</h1>
+
+        <p>Column store</p>
+        <p>СУБД хранит значения одного атрибута для всех кортежей последовательно на странице.</p>
+        <p>Идеально подходит для рабочих нагрузок OLAP, когда запросы только для чтения выполняют большое сканирование подмножества атрибутов таблицы.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Decomposition storage model (DSM)</h1>
+        <img style="width: 85%; height: auto;" src="pictures/dsm_model_page.png"/>
+    </section>
+
+    <secion class="slide">
+        <h1>Decomposition storage model (DSM)</h1>
+
+        <p>Примеры систем: Vertica, Vector-Wise, MonetDB, ClickHouse.</p>
+
+        <p>Преимущества:</p>
+        <p>1. Сокращает количество ненужных операций ввода-вывода, поскольку СУБД считывает только те данные, которые ей нужны.</p>
+        <p>2. Улучшенная обработка запросов и сжатие данных (подробнее об этом позже).</p>
+        <p>Недостатки:</p>
+        <p>1. Медленно для точечных запросов, вставок, обновлений и удалений из-за того что данные одного кортежа лежат в разных страницах.</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>DSM tuple identification</h1>
+
+        <p>Смещения фиксированной длины (Fixed-length Offsets).</p>
+        <p>Встроенные идентификаторы кортежей (Embedded Tuple Identifiers).</p>
+    </secion>
+
+    <secion class="slide">
+        <h1>DSM fixed-length offsets</h1>
+
+        <img style="width: 85%; height: auto;" src="pictures/dsm_fixed_length_offset.png"/>
+    </secion>
+
+    <secion class="slide">
+        <h1>DSM embedded tuple identifiers</h1>
+
+        <img style="width: 85%; height: auto;" src="pictures/dsm_embedded_ids.png"/>
+    </secion>
+
+    <section class="slide">
+        <h1>Storage model</h1>
+        <p>Важно правильно выбрать модель хранилища для целевой рабочей нагрузки:</p>
+        <p>OLTP = Row Store</p>
+        <p>OLAP = хранилище столбцов</p>
+    </section>
+
+    <section class="slide">
+        <h1>Вопросы ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
