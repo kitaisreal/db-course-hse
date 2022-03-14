@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 6.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 6. Hash Table. Part 1.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Data Structures.</p>
+        <p>2. Hash Table Overview.</p>
+        <p>3. Hash Function.</p>
+        <p>4. Static Hashing Scheme</p>
+        <p>5. Static Hash Tables Overview</p>
+        <p>6. Dynamic Hashing Scheme.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Data Structures</h1>
+        <p>1. Хранение внутренних метаданных.</p>
+        <p>2. Хранение основных данные таблиц.</p>
+        <p>3. Хранения временных структуры данных (Join, External sort, Aggregation).</p>
+        <p>4. Хранение индексов</p>
+    </section>
+
+    <section class="slide">
+        <h1>Data Structures</h1>
+
+        <p>Hash Table</p>
+        <p>Tree (B-Trees)</p>
+    </section>
+
+    <section class="slide">
+        <h1>Data Structures</h1>
+
+        <p><b>Организация данных</b></p>
+        <p>Как мы размещаем структуру данных в памяти/страницах и какую информацию необходимо хранить для поддержки эффективного доступа.</p>
+        <p><b>Конкурентный доступ</b></p>
+        <p>Как разрешить нескольким потокам одновременный доступ к структуре данных, не вызывая проблем.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Hash Table Overview</h1>
+        <p>Хеш-таблица реализует неупорядоченный ассоциативный массив, который сопоставляет ключи со значениями.</p>
+        <p>Использует хеш-функцию для вычисления слота в массиве, в котором можно найти желаемое значение.</p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Overview</h2>
+        <p>Основные методы
+            <ul>
+                <li>lookup O(1) average</li>
+                <li>insert O(1) average</li>
+                <li>erase O(1) average (Не очень важен для многих сценариев)</li>
+            </ul>
+        </p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Overview</h2>
+        <img style="text-align: center; height:60%; margin-left: 150px;" src="pictures/hash_table_overview_1.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Overview</h2>
+
+        <p>1. Хеш-функции (Hash Functions).</p>
+        <p>2. Статическая схема хеширования (Static Hashing Scheme).</p>
+        <p>3. Динамические схемы хеширования (Dynamic Hashing Schemes).</p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Functions</h2>
+
+        <p>Хеш-функция принимает любой ключ в качестве входных данных. Затем он возвращает целочисленное представление этого ключа.</p>
+        <p>Вывод функции детерминирован (т. е. один и тот же ключ всегда должен генерировать один и тот же хеш вывод).</p>
+        <p>Нас в первую очередь интересует скорость хеш функции, и ее распределение.</p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Functions</h2>
+
+        <p>1. Не использовать identity-функцию для целочисленных типов.</p>
+        <p>2. Не использовать хеш-функции для строк (CityHash) для целочисленных типов.</p>
+        <p>3. Не использовать криптографические хеш-функции, если вас не атакуют. Например, вычисление SipHash ~980 MB/s. CityHash ~9 GB/s.</p>
+        <p>4. Не использовать устаревшие хеш-функции. FNV1a.</p>
+
+        <p>
+            <a style="font-size: 15px;" href="https://github.com/rurban/smhasher">
+                https://github.com/rurban/smhasher
+            </a>
+        </p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Functions</h2>
+
+        <p>CRC-64 (1975) - используется в сетях для обнаружения ошибок.</p>
+        <p>MurmurHash (2008) - разработана как быстрая хеш-функция общего назначения.</p>
+        <p>Google CityHash (2011) - ускорение работы с короткими ключами (64 байта).</p>
+        <p>Facebook XXHash (2012) - от создателя сжатия zstd.</p>
+        <p>Google FarmHash (2014) - более новая версия CityHash с улучшенным коэффициентом коллизий.</p>
+
+        <p>
+            <a style="font-size: 15px;" href="https://github.com/rurban/smhasher">
+                https://github.com/rurban/smhasher
+            </a>
+        </p>
+    </section>
+
+    <section class="slide">
+        <h2>Static Hashing schemes</h2>
+
+        <p>Статическая схема хеширования — это схема, в которой размер хеш-таблицы фиксирован.
+            Это означает, что если у СУБД заканчивается место для хранения элементов в хеш-таблице, она должна перестроить ее с нуля с таблицей большего размера.</p>
+        <p>Также это необходимо чтобы уменьшить количество коллизий. </p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table</h2>
+        <p>1. Хеш-функция.</p>
+        <p>2. Способ разрешения коллизий.</p>
+        <p>3. Ресайз.</p>
+        <p>4. Способ размещения ячеек в памяти.</p>
+    </section>
+
+    <section class="slide">
+        <h2>Collision resolution</h2>
+        <img style="height:75%; margin-left: 150px; margin-top: -50px;" src="pictures/hash_table_collision.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Collision resolution</h2>
+        <p>1. Метод цепочек (Chaining).</p>
+        <p>2. Открытая адресация (Open Addressing).</p>
+        <p>3. Хорошие в теории (Cuckoo hashing, Hopscotch hashing, 2-choice hashing). Обычно либо тяжело реализуемые,
+            либо медленные за счет дополнительных фетчей из памяти.</p>
+    </section>
+
+    <section class="slide">
+        <h2>Chaining</h2>
+
+        <img style="height:75%; margin-left: 150px; margin-top: -50px;" src="pictures/hash_table_collision_chaining.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Chaining</h2>
+
+        <p>Пример: std::unordered_map</p>
+
+        <p>1. Стабильность указателей на ключ, значение.</p>
+        <p>2. Возможность хранить большие объекты, неперемещаемые объекты.</p>
+        <p>3. Хорошо работает с плохой хеш-функцией, высоким load factor.</p>
+        <p>4. Очень сильно тормозит. Нагружает аллокатор (даже просто вызов функции дорого для hot path).</p>
+        </li>
+    </section>
+
+    <section class="slide">
+        <h2>Chaining</h2>
+
+        <img style="height:75%; margin-left: 125px; margin-top: -50px;" src="pictures/hash_table_collision_open_addressing.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Open Addressing</h2>
+        <p>Линейный пробы (Linear probing). Пример ClickHouse HashMap.</p>
+        <p>Квадратичные пробы (Quadratic probing). Пример: Google DenseHashMap.</p>
+        <p>1. Хорошая кэш-локальность.</p>
+        <p>2. Нужно аккуратно выбирать хеш-функцию.</p>
+        <p>3. Нельзя хранить большие объекты. Сериализуем в арену и храним указатели на них.</p>
+    </section>
+
+    <section class="slide">
+        <h2>Resize</h2>
+        <p>1. По степеням двойки. Быстрое деление по модулю.</p>
+        <code style="display: block; white-space: pre; font-size: 19px;">size_t place = hash & (size - 1)</code>
+        <br>
+        <p>2. На размер простого числа близкого к степени двойки. Медленное деление даже с constant switch, libdivide но есть ещё fastrange.</p>
+    </section>
+
+    <section class="slide">
+        <h2>Load factor</h2>
+        <p>0.5 хороший вариант для линейных проб с шагом 1.</p>
+        <p>ClickHouse HashMap, Google DenseHashMap использует 0.5.</p>
+        <p>Abseil HashMap использует 0.875.</p>
+        <p></p>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Layout</h2>
+        <img style="height:75%; margin-left: 125px; margin-top: -50px;" src="pictures/hash_table_layout.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Layout</h2>
+        <p>Просить клиента выбрать ключи для пустого значения и удаленного.</p>
+        <img style="margin-left: 175px; height:60%" src="pictures/hash_table_layout_sentinels.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Layout</h2>
+        <p>Отдельно обрабатывать пустое значение и не хранить его в хеш-таблице.</p>
+        <img style="margin-left: 175px; height:55%" src="pictures/hash_table_layout_null_special.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Hash Table Layout</h2>
+        <p>Cжатое хранения метадаты и данных.</p>
+        <img style="margin-left: 160px; height:60%" src="pictures/hash_table_metadata.png"/>
+    </section>
+
+    <section class="slide">
+        <h2>Dynamic hashing schemes</h2>
+        <p>Предыдущие хеш-таблицы требуют, чтобы СУБД имела информацию о количество элементов, которые хочет поместить в хеш-таблицу.</p>
+        <p>В противном случае периодически будет происходить расширение хеш-таблицы.</p>
+        <p>Динамические хеш-таблицы изменяют свой размер по требованию.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Conclusion</h1>
+
+        <p>Быстрые структуры данных, поддерживающие поиск O(1), которые используются во всех внутренних компонентах СУБД.</p>
+        <p>Компромисс между скоростью, потреблением памяти, гибкостью.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Вопросы ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
