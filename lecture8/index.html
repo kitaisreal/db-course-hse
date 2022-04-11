@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 6.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 8. B-Tree Indexes. Part 2.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. B+Tree optimizations.</p>
+        <p>2. Additional Index Usage.</p>
+        <p>3. Trie Index</p>
+        <p>4. Radix Tree Index</p>
+        <p>3. Inverted Index.</p>
+    </section>
+
+    <section class="slide">
+        <h1>B+Tree optimizations</h1>
+
+        <p>1. Prefix Compression</p>
+        <p>2. Suffix Truncation</p>
+        <p>3. Bulk inserts.</p>
+        <p>4. Pointer swizzling.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Prefix Compression</h1>
+
+        <p>Отсортированные ключи в одном leaf узле, скорее всего, будут иметь одинаковый префикс.</p>
+        <p>Вместо того, чтобы хранить весь ключ, можно извлечь общий префикс ключей и сохранить только уникальный суффикс для каждого ключа.</p>
+        <p>Может быть множество вариации.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Prefix Compression</h1>
+
+        <img style="width: 80%; height: 60%;" src="pictures/prefix_compression.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Suffix Truncation</h1>
+
+        <p>Ключи в inner узлах используются только для поиска пути к leaf листу.</p>
+        <p>Нам не нужно хранить весь ключ.</p>
+        <p>Можно хранить минимальный префикс, необходимый для поиска пути к leaf листу.</p>
+
+    </section>
+
+    <section class="slide">
+        <h1>Suffix Truncation</h1>
+
+        <img style="width: 80%; height: 60%;" src="pictures/suffix_truncation_1.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Suffix Truncation</h1>
+
+        <img style="width: 80%; height: 60%;" src="pictures/suffix_truncation_2.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Bulk Insert</h1>
+
+        <p>Самый быстрый/лучший способ построить B+Tree — сначала отсортировать ключи, а затем построить индекс снизу вверх.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Pointer swizzling</h1>
+
+        <p>Узлы используют идентификаторы страниц для ссылки на другие узлы в индексе. СУБД должна получить адрес памяти из таблицы страниц во время обхода.</p>
+        <p>Если страница закреплена в буферном пуле, мы можем хранить указатели вместо идентификаторов страниц. Это позволяет избежать обращений к буферному пулу.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Additional Index Usage</h1>
+        <p>1. Неявные индексы (Implicit Indexes).</p>
+        <p>2. Частичные индексы (Partial Indexes).</p>
+        <p>3. Покрывающие индесы (Covering Indexes).</p>
+        <p>4. Включение дополнительных атрибутов в индекс (Index Include Columns).</p>
+        <p>5. Функциональные индексы (Function/Expression Indexes).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Implicit Indexes</h1>
+
+        <p>Большинство СУБД автоматически создают индекс для обеспечения целостности, но не для внешних ключей.</p>
+
+        <p>1. PRIMARY KEY</p>
+        <p>2. UNIQUE CONSTRAINT</p>
+    </section>
+
+    <section class="slide">
+        <h1>Partial Indexes</h1>
+
+        <p>Создайте индекс для подмножества данных из таблицы. Это потенциально уменьшает размер индекса и количество накладных расходов на его обслуживание.</p>
+        <p>Одним из распространенных вариантов использования является создания отдельных индексов по диапазонам дат.</p>
+        <p>Создать отдельный индекс на месяц, год.</p>
+
+        <code>CREATE INDEX idx_test_table ON test_table (value)
+WHERE id > 25;</code>
+    </section>
+
+    <section class="slide">
+        <h1>Covering Indexes</h1>
+
+        <p>Если все поля, необходимые для обработки запроса, доступны в индексе, то СУБД не нужно извлекать кортеж.</p>
+        <p>Это уменьшает нагрузку на буфер пулов СУБД.</p>
+
+        <code>CREATE INDEX idx_test_table ON test_table (id, value)</code>
+        <br>
+        <code>SELECT value FROM test_table WHERE id > 5</code>
+    </section>
+
+    <section class="slide">
+        <h1>Index Include Columns</h1>
+
+        <p>Индекс хранит дополнительные столбцы для поддержки index-only запросов.</p>
+        <p>Эти дополнительные столбцы хранятся только в листовых узлах и не являются частью ключа поиска.</p>
+
+        <code>CREATE INDEX idx_test_table ON test_table (id, value)
+INCLUDE (value2)</code>
+        <br>
+        <code>SELECT value2 FROM test_table
+WHERE id > 5 AND value > 20</code>
+    </section>
+
+    <section class="slide">
+        <h1>Function/Expression Indexes</h1>
+
+        <p>Использует результат функции или выражения в качестве ключа.</p>
+        <p>Задача СУБД — распознать, какие запросы могут использовать этот индекс.</p>
+
+        <code>CREATE INDEX idx_test_table ON test_table (LENGTH(value))</code>
+        <br>
+        <code>SELECT id FROM test_table WHERE LENGTH(value) > 5</code>
+    </section>
+
+    <section class="slide">
+        <h1>Trie Index</h1>
+        <p>По ключам внутренних узлов в B+Tree нельзя сказать, существует ли ключ в индексе. Всегда необходимо обойти дерево к листовому узлу.</p>
+        <p>Это означает, необходимо прочитать одну страницу буферного пула на каждом уровне дерева только для того, чтобы узнать, что ключа не существует.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Trie Index</h1>
+
+        <p>Можно использовать цифровое представление ключей для проверки префиксов один за другим вместо сравнения всего ключа.</p>
+        <img style="width: 45%; height: 60%;" src="pictures/trie.png"/>
+
+    </section>
+
+    <section class="slide">
+        <h1>Trie Index</h1>
+
+        <p>Все операции имеют сложность <b>O(k)</b>, где k — длина ключа.</p>
+        <p>Путь к листовому узлу представляет собой ключ.</p>
+        <p>Ключи хранятся неявно и могут быть восстановлены из пути.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Radix Tree Index</h1>
+        <p>Radix Tree — это вариант структуры данных Trie. Он использует цифровое представление ключей для проверки префиксов
+            один за другим вместо сравнения всего ключа. Это отличается от Trie тем, что для каждого элемента в ключе нет узла,
+            узлы объединяются для представления самого большого префикса до того, как ключи элементов различаются.</p>
+        <p>Высота дерева зависит от длины ключей, а не от их количества. Путь к листовым узлам представляет собой ключ листа.</p>
+        <p>Не все типы атрибутов могут быть разложены в двоичное представление.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Radix Tree Index</h1>
+        <img style="width: 65%; height: 60%;" src="pictures/radix_tree.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Inverted Index</h1>
+
+        <p>Инвертированный индекс хранит сопоставление слов из записи, содержащей эти слова в целевой атрибут.</p>
+        <p>Иногда называется индексом полнотекстового поиска.</p>
+        <p>Большинство СУБД поддерживают по умолчанию. Существуют также специализированные СУБД для полнотекстового поиска<b>Lucene</b>, <b>Elastic Search</b>.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Inverted Index Query Types</h1>
+        <p>1. Поиск по фразе (Phrase Searches)</p>
+        <p>Найти записи, содержащие список слов в заданном порядке.</p>
+        <p>2. Поиски близких слов (Proximity Searches)</p>
+        <p>Найти записи, в которых два слова встречаются в пределах n слов друг от друга.</p>
+        <p>3. Поиск с подстановочными знаками (Wildcard Searches)</p>
+        <p>Найдите записи, содержащие слова, соответствующие некоторому шаблону (например, регулярному выражению).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Inverted Index Store</h1>
+        <p>Индекс должен хранить как минимум слова, содержащиеся в каждой записи (разделенные знаками препинания).</p>
+        <p>Может также хранить частоту, положение и другие метаданные.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Inverted Index Update</h1>
+
+        <p>Использует вспомогательные структуры данных для поддержки batch обновлений.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Conclusion</h1>
+
+        <p>Индексы одна из важнейших составляющих скорости запросов в СУБД.</p>
+        <p>B+Tree индексы хорошее решение по умолчанию.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Questions ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
