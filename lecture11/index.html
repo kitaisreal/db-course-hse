@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 11.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 11. Joins.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Database Normalization</p>
+        <p>2. Join Overview.</p>
+        <p>3. Join Cost Analysis.</p>
+        <p>4. Nested Loop Join.</p>
+        <p>5. Sort-Merge Join.</p>
+        <p>6. Hash Join.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Database Normalization</h1>
+
+        <p>Нормализация базы данных — это процесс структурирования базы данных, обычно реляционной базы данных, в соответствии с серией так называемых нормальных форм с целью
+            уменьшения избыточности данных и улучшения целостности данных.</p>
+        <p>Впервые он был предложен Эдгаром Ф. Коддом как часть его реляционной модели.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Database Normalization</h1>
+
+        <p>Нормализация влечет за собой организацию столбцов (атрибутов) и таблиц (отношений) базы данных, чтобы гарантировать, что их зависимости должным образом соблюдаются ограничениями целостности базы данных.</p>
+        <p>Это достигается путем применения некоторых формальных правил в процессе синтеза (создания новой структуры базы данных)
+            или декомпозиции (улучшения существующей структуры базы данных).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Database Normalization</h1>
+
+        <p>Одним из главных свойств нормализации является устранение избыточности.</p>
+        <p>Для восстановления оригинальных данных таблиц можно воспользоваться операцией соединения (JOIN).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Join Overview</h1>
+
+        <p>Пусть у нас есть отношения R и S.</p>
+        <p>Q - предикат операции Join. В самом простом случае оператор ==.</p>
+        <p>Вывод Join операции для кортежа r ∈ R, и кортежа s ∈ S для которых удовлетворяет предикат Q
+            это объединение соответствующих кортежей r и s.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Join Overview</h1>
+
+        <code>CREATE TABLE department(
+    DepartmentID INT PRIMARY KEY NOT NULL,
+    DepartmentName VARCHAR(20)
+);</code>
+        <br>
+        <code>CREATE TABLE employee (
+    LastName VARCHAR(20),
+    DepartmentID INT
+        REFERENCES department(DepartmentID)
+);</code>
+    </section>
+
+    <section class="slide">
+        <h1>Join Overview</h1>
+
+        <p>Cross Join</p>
+        <code>SELECT * FROM employee, department;</code>
+        <br>
+        <p>Inner Join</p>
+        <code>SELECT * FROM employee INNER JOIN department ON
+employee.DepartmentID = department.DepartmentID;</code>
+    </section>
+
+    <section class="slide">
+        <h1>Join Overview</h1>
+
+        <p>Left Join</p>
+        <code>SELECT * FROM employee LEFT [OUTER] JOIN department
+ON employee.DepartmentID = department.DepartmentID;</code>
+        <br>
+        <p>Right Join</p>
+        <code>SELECT * FROM employee RIGHT [OUTER] JOIN department
+ON employee.DepartmentID = department.DepartmentID;</code>
+    </section>
+
+    <section class="slide">
+        <h1>Join Cost Analysis</h1>
+
+        <p>Анализ стоимости оператора Join будет происходить в модели вычислений с внейшней памятью.</p>
+        <p>Стоимость различных алгоритмов будем измерять в количествах I/O операций ввода-вывода.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Join Cost Analysis</h1>
+
+        <p>В дальнейшем будем использовать следующие обозначения.</p>
+        <p>SELECT * FROM R JOIN S ON Q(r, s).</p>
+        <p>Q - предикат, в дальнешнем оператор ==.</p>
+        <p>R - внешняя (outer) таблица.</p>
+        <p>M - количество блоков в R. m - количество кортежей в R.</p>
+        <p>S - внутренняя (inner) таблица.</p>
+        <p>N - количество блоков в S. n - количество кортежей в S.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Join Cost Analysis</h1>
+
+        <p>Алгоритмы</p>
+        <p>1. Nested Loop Join</p>
+        <p>2. Block Nested Loop Join</p>
+        <p>3. Index Nested Loop Join</p>
+        <p>4. Sort-Merge Join</p>
+        <p>5. Hash-Join</p>
+        <p>6. Grace Hash Join</p>
+    </section>
+
+    <section class="slide">
+        <h1>Nested Loop Join</h1>
+
+        <p>Для каждого кортежа во внешней таблице сравнивает его с каждым кортежем во внутренней таблице.</p>
+        <p>Базовый алгоритм:</p>
+
+<code>for r in R:
+    for s in S:
+        if q(r, s):
+            emit r o s
+</code>
+        <br>
+        <p>Стоимость: <b>M + (m * N)</b></p>
+    </section>
+
+    <section class="slide">
+        <h1>Block Nested Loop Join</h1>
+
+        <p>Для блока во внешней таблице сравнивает его с каждым блоком во внутренней таблице.</p>
+        <p>Базовый алгоритм:</p>
+
+<code>for blockR in R:
+    for blockS in S:
+        for r in blockR:
+            for s in blockS:
+            if q(r, s):
+                emit r o s
+</code>
+        <br>
+
+        <p>Стоимость: <b>M + (M * N)</b></p>
+        <p>Если у нас доступно всего B блоков. Стоимость <b>M + ([M/(B-2] * N)</b></p>
+    </section>
+
+    <section class="slide">
+        <h1>Index Nested Loop Join</h1>
+
+        <p>Для блока во внешней таблице сравнивает его с каждым блоком во внутренней таблице.</p>
+        <p>Базовый алгоритм:</p>
+
+<code>for r in R:
+        for s in S:
+            if indexMatchQ(r, s):
+                emit r o s
+</code>
+        <br>
+
+        <p>Стоимость: <b>M + (m * C)</b></p>
+        <p>C - стоимость доступа по индексу</p>
+    </section>
+
+    <section class="slide">
+        <h1>Nested Loop Join</h1>
+
+        <p>Оптимизации:</p>
+        <p>1. Выбрать внешней таблицей меньшую из R и S.</p>
+        <p>2. Буфферизовать чтение из внешней таблицы.</p>
+        <p>3. Использовать индекс для поиска во внутренней таблице.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Sort-Merge Join</h1>
+
+        <p>Состоит из 2 фаз:</p>
+        <p>1. Сортировка обоих таблиц используя ключи в Join операторе.</p>
+        <p>2. Итерация по обоим отсортированным таблицам используя курсоры.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Sort-Merge Join</h1>
+
+        <p>Cтоимость операции Sort:</p>
+        <p>1. Для таблицы R: <b>2 * M * (log(K)(M/K))</b></p>
+        <p>2. Для таблицы R: <b>2 * N * (log(K)(N/K))</b></p>
+        <p>Стоимость операции Merge: <b>(M + N)</b></p>
+    </section>
+
+    <section class="slide">
+        <h1>Hash Join</h1>
+
+        <p>Построим хэш-таблицу по ключу в Join операторе для внешней таблицы R.</p>
+        <p>Итерируемся по внутренней таблице S, и если ключ присутствует в хэш таблице выводим результат.</p>
+
+<code>build HT for R
+for s in S:
+    if HT.match(s)
+        emit r o s
+    </code>
+
+        <p>Стоимость: <b>M + N</b> если хэш-таблица помещается в оперативную память</p>
+    </section>
+
+    <section class="slide">
+        <h1>Grace Hash Join</h1>
+
+        <p>1. Фаза построения, разбиваем данные из таблиц R и S на партиции используя хэш-функцию h1.</p>
+        <p>2. Применяем операцию Join для данных в соотвествующих партициях (Можно использовать любой алгоритм).</p>
+
+        <p>Стоиомсть: <b>3 * (M + N)</b> если нам хватает B блоков для партиций</p>
+    </section>
+
+    <section class="slide">
+        <h1>Grace Hash Join</h1>
+
+        <img style="width: 60%; height: auto;" src="pictures/grace.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Conclusion</h1>
+
+        <p>Для оператора Join нету идеального алгоритма.</p>
+        <p>Необходимо учитывать количество доступной оперативной памяти, существующие индексы таблиц.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Questions ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
