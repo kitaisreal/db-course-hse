@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 14.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 14. Query Optimization.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Query Optimization Basics.</p>
+        <p>2. Rule-Based Query Optimizations.</p>
+        <p>3. Cost-Based Query Optimizations.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Optimization Basics</h1>
+
+        <p>Оптимизатор запросов - компонент СУБД, отвечающий за оптимизацию запросов.</p>
+        <p>1. Оптимизация логического плана запроса - определить наиболее эффективный физический способ выполнения данного запроса, рассматривая возможные планы запроса.</p>
+        <p>2. Оптимизировать ресурсы для конкретных узлов физического плана (размер хэш-таблиц, размер вспомогательных структур).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Optimization Basics</h1>
+
+        <p>Первый оптимизатор запросов - IBM System R</p>
+        <p>Множество идей и подходов до сих пор используются в современных СУБД (dynamic programming).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Optimization Models</h1>
+        <p>Существует две основные стратегии оптимизации:</p>
+
+        <p>Оптимизация используя различные евристики/правила (Heuristics/Rules): логический план запроса переписывается, чтобы устранить не оптимальные . Не требует стоимостной модели (cost-based model).</p>
+        <p>Стоимостная модель (Cost-Based Model): для оценка планов запроса используются стоимости различных операций (CPU, RAM, DISK), выбирается тот план у которого наименьшая стоимость.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Plan</h1>
+
+        <p>Выполнение SQL запроса в СУБД разделяется на следующие стадии:</p>
+        <p>1. Парсинг запроса (Parse Query).</p>
+        <p>2. Анализ запроса (Analyze Query).</p>
+        <p>3. Выбор логического плана выполнения (Logical Query Plan Selection).</p>
+        <p>4. Выбор физического плана выполнения (Physical Query Plan Selection).</p>
+        <p>5. Выполнение запроса (Query Plan Execution).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Execution</h1>
+
+        <img style="width: 60%; height: auto;" src="pictures/plan.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Rule-Based Query Optimizations</h1>
+
+        <p>Два выражения реляционной алгебры эквивалентны, если они генерируют один и тот же набор кортежей.</p>
+        <p>Учитывая это, СУБД может определять лучшие планы запросов без модели затрат. Этот метод часто называют переписыванием запросов (Query Rewrite).</p>
+        <p>Обратите внимание, что большинство СУБД переписывают план запроса, а не AST.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Rewriting</h1>
+
+        <p>Примеры переписывания запросов:</p>
+        <p>Predicate Push-down: Выполнить фильтрацию из WHERE перед операцией JOIN, чтобы уменьшить размер левой или правой таблицы).</p>
+        <p>Projections Push down: Выполнить проекцию заранее, выбрать только обязательные атрибуты для запроса (в большинстве колоночных СУБД по-умолчанию), чтобы создавать кортежи меньшего размера.</p>
+        <p>Expressions Simpliciation: простейшие оптимизации выражений используя набор правил.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Expressions Simpliciation</h1>
+
+        <p>SELECT * FROM table WHERE 1 = 1;</p>
+        <p>SELECT * FROM table WHERE table.a != table.a; (Предположение, что table.a NON NULLABLE);</p>
+        <p>SELECT * FROM table AS a, table AS b ON a.id = b.id;</p>
+        <p>SELECT * FROM table AS a WHERE a.id BETWEEN 1 AND 2 AND a.id BETWEEN 3 AND 4</p>
+
+        <p>
+            <a style="font-size: 15px;" href="https://blog.jooq.org/10-cool-sql-optimisations-that-do-not-depend-on-the-cost-model/">
+                https://blog.jooq.org/10-cool-sql-optimisations-that-do-not-depend-on-the-cost-model/
+            </a>
+        </p>
+    </section>
+
+    <section class="slide">
+        <h1>Rule-Based Query Optimizations</h1>
+
+        <p>Мы можем использовать статические правила и эвристики для оптимизации плана запроса без необходимости разбираться в содержимом базы данных.</p>
+        <p>Большинство СУБД делают это в дополнение к стоимостной модели.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Cost-Based Query Optimizations</h1>
+
+        <p>Оптимизатор СУБД будет использовать внутреннюю модель стоимости для оценки стоимости выполнения для конкретного плана запроса.</p>
+        <p>Это дает оценку, позволяющую определить, лучше ли один план, чем другой, без фактического выполнения запроса (что было бы медленным для тысяч планов).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Cost-Based Query Optimizations</h1>
+
+        <p>Эта оценка является внутренней метрикой, которая (обычно) несопоставима с реальными метриками, но ее можно получить путем оценки использования различных ресурсов:</p>
+        <p>CPU: небольшая стоимость (большинство запросов IO bound).</p>
+        <p>Диск: количество переданных блоков (страниц).</p>
+        <p>Память: объем используемой памяти.</p>
+        <p>Сеть: количество переданных данных по сети (для распределенных СУБД).</p>
+
+        <p>Для этого СУБД хранит внутреннюю статистику о таблицах, атрибутах и индексах в своем внутреннем каталоге.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Cost-Based Query Optimizations</h1>
+
+        <p>Для отношения R СУБД хранит количество кортежей N(R).</p>
+        <p>Количество уникальных значений (V(A,R)) для каждого атрибута A из отношения R.</p>
+        <p>Селективная кардинальность (Selection cardinality) (SC(A, R)) — это среднее количество записей со значением атрибута A, заданным N(R)/V(A,R).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Cost-Based Query Optimizations</h1>
+
+        <p>Селективность — это вероятность того, что кортеж будет удовлетворять предикату.</p>
+
+        <p><b>SEL(A = constant)</b> = <b>SC(A,R)/V(A, R)</b></p>
+        <p><b>SEL(not P)</b> = <b>1 - SEL(P)</b></p>
+        <p>Таким образом, если предположить, что предикаты независимы, то:
+        <p><b>SEL(P1 ^ P2)</b>> = <b>SEL(P1)</b> ∗ <b>SEL(P2)</b>.</p></p>
+        <p><b>SEL(P1 V P2)</b> = <b>SEL(P1)</b> + <b>SEL(P2)</b> – <b>SEL(P1 ^ P2)</b></p>
+    </section>
+
+    <section class="slide">
+        <h1>Statistics Storage</h1>
+
+        <p>Гистограммы (Histograms)</p>
+        <p>Хранение выборок данных (Sampling)</p>
+    </section>
+
+    <section class="slide">
+        <h1>Cost-Based Query Optimizations</h1>
+
+        <p>Базовый алгоритм поиска на используя стоимостную модель для оптимизатора запросов следующий:</p>
+        <p>1. Привести запрос во внутренней форме в каноническую форму.</p>
+        <p>2. Создайте различные планы запросов.</p>
+        <p>3. Создайте стоимость для каждого плана (cost calculation).</p>
+        <p>4. Выберите план с наименьшей стоимостью.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Cost-Based Query Optimizations</h1>
+
+        <p>Одиночное отношение (Single relation).</p>
+        <p>Множественное отношение (Multiple relations).</p>
+        <p>Подзапросы (Nested Queries).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Single relation</h1>
+
+        <p>Необходимо выбрать лучший метод доступа к данным (Access method).</p>
+        <p>В большинстве случаев достаточно простых эвристик.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Multiple relations</h1>
+
+        <p>Метод основанный на динамическом программировании (Dynamic programming) из System R.</p>
+        <p>1. Порядок таблиц для каждого отношения.</p>
+        <p>2. Метод доступа для каждого отношения.</p>
+        <p>3. Алгоритм Join для каждого отношения.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Nested Queries</h1>
+
+        <p>СУБД рассматривает вложенные подзапросы в предложении WHERE как функции, которые принимают параметры и возвращают одно значение или набор значений.</p>
+        <p>Два подхода:</p>
+        <p>1. Переписать запрос в JOIN (Decorrelation).</p>
+        <p>2. Разложить вложенный запрос и сохранить скалярный результат.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Conclusion</h1>
+
+        <p>Оптимизатор самая сложная часть современной СУБД.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Questions ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
