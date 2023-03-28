@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 12.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 13. Query Execution. Part 2.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Query Execution</p>
+        <p>2. Parallel Databases.</p>
+        <p>3. Distributed Databases.</p>
+        <p>4. Process Model.</p>
+        <p>5. Query Parallelism.</p>
+        <p>6. I/O Parallelism.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Execution</h1>
+
+        <p>Выполнение SQL запроса в СУБД разделяется на следующие стадии:</p>
+        <p>1. Парсинг запроса (Parse Query).</p>
+        <p>2. Анализ запроса (Analyze Query).</p>
+        <p>3. Выбор логического плана выполнения (Logical Query Plan Selection).</p>
+        <p>4. Выбор физического плана выполнения (Physical Query Plan Selection).</p>
+        <p>5. Выполнение запроса (Query Plan Execution).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Execution</h1>
+
+        <img style="width: 60%; height: auto;" src="pictures/plan.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Parallel Query Execution</h1>
+
+        <p>Улучшить производительность.</p>
+        <p>1. Уменьшить латентность (Latency).</p>
+        <p>2. Увеличить пропускную способность (Throughtput).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Parallel Query Execution</h1>
+
+        <p>СУБД распределяется на множество ресурсов для улучшения параллелизма.</p>
+        <p>Эти ресурсы либо вычислительные (compute) (CPU, GPU, дополнительные машины), либо ресурсы хранения (storage) (диски, память).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Parallel Database</h1>
+
+        <p>Параллельная СУБД (Parallel Database):</p>
+        <p>Узлы физически расположены близко друг к другу.</p>
+        <p>Узлы подключены к высокоскоростному, надежному каналу передачи информации (шина процессора).</p>
+
+    </section>
+
+    <section class="slide">
+        <h1>Distributed Database</h1>
+        <p>Распределенная СУБД (Distributed Database):</p>
+        <p>Узлы могут находиться далеко друг от друга.</p>
+        <p>Узлы подключены через ненадежный канал передачи информации (сеть).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Distributed Database</h1>
+
+        <p>Несмотря на то, что база данных может быть физически разделена на несколько ресурсов, она по-прежнему представляется приложению как единый логический экземпляр базы данных.</p>
+        <p>Таким образом, SQL-запрос для одноузловой СУБД должен давать такой же результат для параллельной или распределенной СУБД.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Process Model</h1>
+
+        <p>Процессорная модель СУБД определяет, как система поддерживает одновременные запросы от многопользовательского приложения/среды.</p>
+        <p>СУБД состоит из нескольких рабочих процессов (worker), которые отвечают за выполнение задач от имени клиента и возврат результатов.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Process Model</h1>
+
+        <p>Используется 1 физический процесс (process) на 1 рабочий процесс (worker).</p>
+        <p>Каждый рабочий процесс — это отдельный процесс ОС, поэтому он зависит от планировщика ОС (Scheduler).</p>
+        <p>Для глобальных структур данных используется разделяемая память (shared memory).</p>
+        <p>Сбой одного физического процесса не приводит к остановке всей системы.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Process Model</h1>
+
+        <p>Для задач используется пул процессов (process pool).</p>
+        <p>Рабочий процесс (worker) использует любой свободный процесс из пула.</p>
+        <p>По-прежнему зависит от планировщика ОС и разделяемой памяти (shared memory).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Process Model</h1>
+
+        <p>Используется 1 физический поток (thread) на 1 рабочий процесс (worker). (multithreading architecture)</p>
+        <p>1. СУБД должна управлять собственным планированием.</p>
+        <p>2. Сбой потока (SEGFAULT) может убить всю систему. Мы должны быть уверены, что пишем высококачественный (fuzzers, sanitizers)
+            код, чтобы этого не произошло.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Process Model</h1>
+
+        <p>Использование многопоточной архитектуры (multithreading architecture) имеет преимущества, заключающиеся в меньшем количестве накладных расходов на переключение контекста
+            и отсутствии необходимости использовать IPC.</p>
+        <p>Многопоточоная архитектура не означает, что у вас есть параллелизм внутри запроса.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Scheduling</h1>
+
+        <p>Для каждого плана запроса СУБД должна решить, где, когда и как выполнять:</p>
+
+        <p>1. Сколько потоков запрос должен использовать ?</p>
+        <p>2. На каких ядрах ЦП должны выполняться задачи ?</p>
+        <p>3. Сколько IO задача может использовать ?</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Parallelism</h1>
+
+        <p><b>Inter-Query</b> - СУБД одновременно выполняет разные запросы. Это увеличивает пропускную способность и уменьшает задержку. Параллелизм сложен, когда запросы обновляют базу данных (Concurrency Control).</p>
+        <p><b>Intra-Query</b> - СУБД выполняет операции одного запроса параллельно. Это уменьшает задержку для длительных запросов (OLAP сценарии).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Intra Query Parallelism</h1>
+
+        <p>Операторы плана запроса разбиваются на независимые экземпляры, выполняющие одну и ту же функцию на разных подмножествах данных.</p>
+        <p>СУБД вставляет оператор обмена (Exhange) в план запроса для объединения результатов дочерних операторов.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Intra Query Parallelism</h1>
+
+        <img style="width: 50%; height: auto;" src="pictures/exchange_operator.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Exhange operator</h1>
+
+        <p>В целом существует три типа оператора Exhange:</p>
+        <p><b>Gather</b>: объединить результаты нескольких рабочих процессов в один выходной поток. Это наиболее распространенный тип, используемый в параллельных СУБД.</p>
+        <p><b>Repartition</b>: реорганизация нескольких входных потоков в нескольких выходных потоках. Это позволяет СУБД принимать входные данные, разделенные одним способом, а затем перераспределять их другим способом.</p>
+        <p><b>Distribute</b>: разделить один входной поток на несколько выходных потоков.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Intra Query Parallelism</h1>
+
+        <p>Все реляционные операторы имеют параллельную версию.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Parallel Grace Hash Join</h1>
+
+        <p>1. Делаем параллельно Partitioning.</p>
+        <p>2. Затем параллельно объединяем данные.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Parallel Aggregation</h1>
+
+        <p>1. Делаем аггрегацию во много потоков.</p>
+        <p>2. Каждый поток имеет хэш-таблицу где ключ GROUP BY выражение, значение вектор состояний аггрегатных функций)</p>
+        <p>2. Затем параллельно объединяем данные в хэш-таблицах.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Parallel Sort</h1>
+
+        <p>1. Сортируем потоки с данными. Получаем множество отсортированных потоков.</p>
+        <p>2. Объединяем отсортированные потоки данных.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Inter Query Parallelism</h1>
+
+        <p>Параллелизм на уровне передачи данных между операторами.</p>
+        <p>СУБД перекрывает операторы, чтобы передавать данные от одного этапа к другому без материализации (Pipeline parallelism).</p>
+        <p>СУБД вставляет оператор обмена (Exhange) в план запроса для объединения результатов дочерних операторов.</p>
+        <p>Этот подход широко используется в системах потоковой обработки, которые постоянно выполняют запрос над потоком входных кортежей.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Bushy Parallelism</h1>
+
+        <p>Расширение inter query parallelism, при котором рабочие выполняют несколько операторов из разных сегментов плана запроса одновременно.</p>
+        <p>СУБД по-прежнему использует операторы обмена для объединения промежуточных результатов из этих сегментов.</p>
+    </section>
+
+    <section class="slide">
+        <h1>IO Parallelism</h1>
+
+        <p>Использование дополнительных процессов/потоков для параллельного выполнения запросов не улучшит производительность, если диск всегда является основным узким местом.</p>
+        <p>Таким образом, нам нужен способ разделить базу данных на несколько устройств хранения (storage devices).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Multi Disk Parallelism</h1>
+
+        <p>Настройка ОС/оборудования для хранения файлов СУБД на нескольких устройствах хранения. Это можно сделать с помощью устройств хранения данных и конфигурации RAID.</p>
+        <p>Метод прозрачный для СУБД.</p>
+        <p>У него не может быть рабочих операций на разных устройствах, потому что он не знает о лежащем в основе параллелизме.</p>
+    </section>
+
+    <section class="slide">
+        <h1>File based partitioning</h1>
+
+        <p>Некоторые СУБД позволяют указать расположение на диске каждой отдельной базы данных.</p>
+        <p>Буферный пул сопоставляет страницу с расположением на диске. Это также легко сделать на уровне файловой системы, если СУБД хранит каждую базу данных в отдельном каталоге.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Logical Partitioning</h1>
+
+        <p>Деление одной логической таблицы на множество непересекающихся физических сегментов, которые хранятся/управляются отдельно.</p>
+        <p>Прозрачно для СУБД. То есть приложение должно иметь доступ к логическим таблицам, не заботясь о том, как они хранятся.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Conclusion</h1>
+
+        <p>В современных СУБД используется многопоточная архитектура.</p>
+        <p>Для всех реляционных операторов есть параллельная версия.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Questions ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
