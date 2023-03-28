@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>HSE DB Course. Lecture 12.</title>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="shower/themes/yandex/styles/screen-16x9.css">
+
+    <style type="text/css">
+        code { display: block; white-space: pre; background-color: #EEE; }
+        p.cloud { text-align: center; line-height: 1.5; }
+        p.cloud span { font-size: 13pt; color: gray; padding: 0 20px 0 20px; white-space: nowrap; }
+   </style>
+</head>
+<body class="shower list">
+    <header class="caption">
+        <h1>Базы данных 2022</h1>
+    </header>
+
+    <section class="slide" id="cover">
+        <h1 style="margin-top: 150px;">Лекция 12. Query Execution.</h1>
+    </section>
+
+    <section class="slide">
+        <h2>План</h2>
+        <p>1. Query Plan</p>
+        <p>2. Query Execution Models.</p>
+        <p>3. Access Methods.</p>
+        <p>4. Expression Evaluation.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Plan</h1>
+
+        <p>Выполнение SQL запроса в СУБД разделяется на следующие стадии:</p>
+        <p>1. Парсинг запроса (Parse Query).</p>
+        <p>2. Анализ запроса (Analyze Query).</p>
+        <p>3. Выбор логического плана выполнения (Logical Query Plan Selection).</p>
+        <p>4. Выбор физического плана выполнения (Physical Query Plan Selection).</p>
+        <p>5. Выполнение запроса (Query Plan Execution).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Plan</h1>
+
+        <p>План выполнения запроса (Query Plan) - последовательность операций, необходимых для получения результата SQL-запроса в реляционной СУБД.</p>
+        <p>Логический план запроса (Logical Query Plan).</p>
+        <p>Физический план запроса (Physical Query Plan).</p>
+    </section>
+
+    <section class="slide">
+        <h1>Query Plan</h1>
+
+        <img style="width: 60%; height: auto;" src="pictures/plan.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Query Execution Models</h1>
+
+        <p>1. Iterator Model</p>
+        <p>2. Materialization Model</p>
+        <p>3. Vectorization Model</p>
+    </section>
+
+    <section class="slide">
+        <h1>Iterator Model</h1>
+
+        <p>Это наиболее распространенная модель обработки, которая используется почти во всех (row-based) СУБД (<b>MySQL</b>, <b>PostgreSQL</b>).</p>
+        <p>Обеспечивает конвейерную обработку, при которой СУБД может обрабатывать кортеж с помощью максимально возможного количества операторов, прежде чем будет необходимо получить следующий кортеж.</p>
+        <p>Volcano Model</p>
+    </section>
+
+    <section class="slide">
+        <h1>Iterator Model</h1>
+
+        <p>Каждый оператор плана запроса реализует функцию next():</p>
+        <p>1. При каждом вызове next() оператор возвращает либо один кортеж, либо специальное значение сигнализирующее, что кортежей больше нет.</p>
+        <p>2. Оператор реализует цикл, который вызывает next для своих дочерних элементов, чтобы получить их кортежи, а затем обрабатывать их (т. е. вызов next для родителя вызывает next для его дочерних элементов).</p>
+
+        <p>Выполнение некоторых операторов заблокирует выполнение запроса, пока не будут вычитаны все кортежи потомков (JOIN, SUBQUERY, ORDER BY). Pipeline breakers.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Iterator Model</h1>
+
+        <img style="width: 30%; height: auto;" src="pictures/volcano_style.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Materialization Model</h1>
+
+        <p>Каждый оператор обрабатывает все свои входные данные одновременно, а затем одновременно выдает все свои выходные данные. Оператор «материализует» свой вывод как один результат.</p>
+        <p>Каждый оператор плана запроса реализует функцию output():</p>
+        <p>1. Оператор обрабатывает сразу все кортежи своих дочерних элементов.</p>
+        <p>2. Результатом возврата функции output() являются все кортежи, которые оператор когда-либо выдаст (в Iterator Model). Когда оператор
+            завершает выполнение, СУБД никогда не нужно возвращаться к нему для получения дополнительных данных.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Materialization Model</h1>
+
+        <p>Подходит для OLTP баз данных (промежуточные значения операторов помещаются в Main Memory).</p>
+        <p>Плохо подходит для OLAP нагрузки.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Vectorization Model</h1>
+
+        <p>Аналогичен Iterator модели, однако результат вызова функции next() возвращает пачку (вектор) данных вместо одного кортежа.</p>
+        <p>Используется всеми современными OLAP системами (<b>Vertica</b>, <b>Snowflake</b>, <b>ClickHouse</b>).</p>
+
+    </section>
+
+    <section class="slide">
+        <h1>Vectorization Model</h1>
+
+    </section>
+
+    <section class="slide">
+        <h1>Access Methods</h1>
+
+        <p>Метод доступа — это то, как СУБД получает доступ к данным, хранящимся в таблице. Это будут листовые операторы в плане запроса,
+            которые «передают» данные операторам над ним в дереве. В реляционной алгебре нет соответствующего оператора.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Access Methods</h1>
+
+        <p>1. Sequential Scan</p>
+        <p>2. Index Scan</p>
+    </section>
+
+    <section class="slide">
+        <h1>Sequential Scan</h1>
+
+        <p>Выполнить итерацию по каждой странице в таблице и извлечь ее из буферного пулла.</p>
+        <p>Для каждой страницы выполнить итерацию по всем кортежам, вычислить предикат (Q) и решить, включать ли кортеж или нет.</p>
+        <p>Оптимизации:</p>
+
+        <p>1. Prefetch: выборка следующих нескольких страниц заранее, чтобы СУБД не приходилось блокировать доступ к каждой странице.</p>
+        <p>2. Parallel Scan: параллельное выполнение сканирования с использованием нескольких потоков/процессов.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Sequential Scan</h1>
+
+        <p>3. Buffer pool bypass: оператор сканирования сохраняет страницы, извлеченные с диска, в своей локальной памяти.
+        вместо буферного пула. Это позволяет избежать проблемы sequential flooding.</p>
+        <p>4. Zone Map: предварительные вычисления некоторой статистики для каждого атрибута кортежа на странице.
+            Затем СУБД может проверить нужно ли ему получить доступ к странице, сначала проверив Zone Map.</p>
+        <p>5. Clustered Index: кортежи хранятся на страницах кучи в порядке, определяемом индексом кластеризации.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Index Scan</h1>
+
+        <p>1. Clustered Index Scan</p>
+        <p>2. Unclustered Index Scan</p>
+    </section>
+
+    <section class="slide">
+        <h1>Unclustered Index Scan</h1>
+
+        <p>Выбор индекса зависит от его селективности.</p>
+        <p>Извлечение кортежей в том порядке, в котором они появляются в некластеризованном индексе, неэффективно.</p>
+        <p>СУБД может сначала определить все необходимые ей кортежи, а затем отсортировать их по идентификаторам страниц.</p>
+        <p>В таком случае страницы будут читаться с диска последовательно.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Multiple Index Scan</h1>
+
+        <p>При использовании нескольких индексов СУБД выполняет поиск по каждому индексу и генерирует набор совпадающих идентификаторов записей.</p>
+        <p>Этот идентификатор записи можно реализовать с помощью bitmaps, хэш-таблиц или фильтров блума.</p>
+        <p>СУБД объединяет эти наборы на основе предикатов запроса (объединение или пересечение).</p>
+        <p>Затем записи извлекаются и СУБД применяет дополнительные предикаты.</p>
+        <code>SELECT * FROM test_table
+WHERE id &lt; 20 AND value &gt; 30 AND test_value = 1;</code>
+    </section>
+
+    <section class="slide">
+        <h1>Expression Evaluation</h1>
+
+        <p>СУБД представляет план запроса в виде дерева. Внутри некоторых операторов возможно необходимо вычислять выражения. Например, выражения в WHERE для оператора фильтрации.</p>
+        <p>Для вычисления выражений строится дерево выражений Expression Tree.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Expression Evaluation</h1>
+
+        <p>Узлы в дереве представляют разные типы выражений:</p>
+        <p>1. Сравнения (=, &lt;, >, !=)</p>
+        <p>2.Соединение (И), Дизъюнкция (ИЛИ) • Арифметические операторы (+, -, *, /, %)</p>
+        <p>3. Значения констант и параметров</p>
+        <p>4. Ссылки на атрибуты кортежа</p>
+    </section>
+
+    <section class="slide">
+        <h1>Expression Evaluation</h1>
+        <img style="width: 60%; height: auto;" src="pictures/simple_expression_before_compilation.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Expression Evaluation</h1>
+        <p>Для вычисления выражений например a + b + c + 2. СУБД необходимо построить дерево выражений, затем проинтепретировать его.</p>
+        <p>Интерпретация может занимать много времени. В современных СУБД используется JIT компиляция.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Expression Evaluation</h1>
+        <img style="width: 60%; height: auto;" src="pictures/simple_expression_after_compilation.png"/>
+    </section>
+
+    <section class="slide">
+        <h1>Conclusion</h1>
+
+        <p>Для OLTP нагрузки предпочтительный выбор Iterator Model.</p>
+        <p>Для OLAP нагрузки предпочтительный выбор Vectorized Execution Model.</p>
+    </section>
+
+    <section class="slide">
+        <h1>Questions ?</h1>
+    </section>
+
+    <div class="progress"></div>
+    <script src="shower/shower.min.js"></script>
+
+    <!--Video plugin-->
+    <link rel="stylesheet" href="shower/shower-video.css">
+    <script src="shower/shower-video.js"></script>
+    <!--/Video plugin-->
+</body>
+</html>
